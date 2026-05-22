@@ -1,10 +1,11 @@
 // Display: owns the WebGL2 context, the input texture, and the passthrough
-// program that copies the texture to the canvas. M1 ships only the
-// passthrough; the pyramid module (next PR) will sit between the texture
-// upload and the draw.
+// program that copies a chosen texture to the canvas. M1's pyramid module
+// sits between texture upload and final draw — it reads inputTexture and
+// produces lower-resolution outputs that drawTexture then displays.
 
 import passthroughVert from '../shaders/passthrough.vert?raw';
 import passthroughFrag from '../shaders/passthrough.frag?raw';
+import { buildProgram, GLError } from './gl-utils';
 
 export class DisplayError extends Error {
   constructor(message: string) {
@@ -35,7 +36,13 @@ export function initDisplay(canvas: HTMLCanvasElement): DisplayContext {
   });
   if (!gl) throw new DisplayError('WebGL2 is not available in this browser.');
 
-  const program = buildProgram(gl, passthroughVert, passthroughFrag);
+  let program: WebGLProgram;
+  try {
+    program = buildProgram(gl, passthroughVert, passthroughFrag);
+  } catch (err) {
+    if (err instanceof GLError) throw new DisplayError(`Display ${err.message}`);
+    throw err;
+  }
 
   const vao = gl.createVertexArray();
   if (!vao) throw new DisplayError('Could not allocate a vertex array object.');
@@ -48,20 +55,25 @@ export function initDisplay(canvas: HTMLCanvasElement): DisplayContext {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
+  // Bind the sampler uniform once.
+  gl.useProgram(program);
+  const loc = gl.getUniformLocation(program, 'uTex');
+  if (loc) gl.uniform1i(loc, 0);
+
   return { gl, canvas, program, vao, inputTexture, textureWidth: 0, textureHeight: 0 };
 }
 
-// Uploads the current video frame into the input texture and draws it to the
-// canvas. Allocates the texture storage once (texImage2D) and only re-allocates
-// if the video's dimensions change; subsequent frames use texSubImage2D so the
-// driver can reuse the existing GPU buffer.
-export function drawVideoFrame(ctx: DisplayContext, video: HTMLVideoElement): void {
+// Uploads the current video frame into the input texture. Allocates the
+// texture storage once (texImage2D) and only re-allocates if the video's
+// dimensions change; subsequent frames use texSubImage2D so the driver can
+// reuse the existing GPU buffer. Returns true when a real frame is now in
+// the texture, false when the video isn't ready yet.
+export function uploadVideoFrame(ctx: DisplayContext, video: HTMLVideoElement): boolean {
   const w = video.videoWidth;
   const h = video.videoHeight;
-  if (w === 0 || h === 0) return;
+  if (w === 0 || h === 0) return false;
 
   const { gl } = ctx;
-
   gl.bindTexture(gl.TEXTURE_2D, ctx.inputTexture);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
@@ -77,57 +89,18 @@ export function drawVideoFrame(ctx: DisplayContext, video: HTMLVideoElement): vo
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video);
   }
 
+  return true;
+}
+
+// Draws the given texture to the canvas via the passthrough program.
+// Restores the default framebuffer and sizes the viewport to the canvas.
+export function drawTexture(ctx: DisplayContext, texture: WebGLTexture): void {
+  const { gl } = ctx;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.viewport(0, 0, ctx.canvas.width, ctx.canvas.height);
   gl.useProgram(ctx.program);
   gl.bindVertexArray(ctx.vao);
   gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, ctx.inputTexture);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
-}
-
-function buildProgram(
-  gl: WebGL2RenderingContext,
-  vsSource: string,
-  fsSource: string,
-): WebGLProgram {
-  const vs = compileShader(gl, gl.VERTEX_SHADER, vsSource);
-  const fs = compileShader(gl, gl.FRAGMENT_SHADER, fsSource);
-
-  const program = gl.createProgram();
-  if (!program) throw new DisplayError('Could not allocate program object.');
-  gl.attachShader(program, vs);
-  gl.attachShader(program, fs);
-  gl.linkProgram(program);
-
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    const log = gl.getProgramInfoLog(program) ?? '<no info log>';
-    gl.deleteProgram(program);
-    throw new DisplayError(`Program link failed: ${log}`);
-  }
-
-  // Shaders are flagged for deletion now; they'll be freed once the program
-  // releases its reference. The program keeps working until we delete it.
-  gl.deleteShader(vs);
-  gl.deleteShader(fs);
-
-  // Bind the sampler uniform to texture unit 0 once. Uniforms live on the
-  // program object, so this survives across draws.
-  gl.useProgram(program);
-  const loc = gl.getUniformLocation(program, 'uTex');
-  if (loc) gl.uniform1i(loc, 0);
-
-  return program;
-}
-
-function compileShader(gl: WebGL2RenderingContext, type: GLenum, source: string): WebGLShader {
-  const shader = gl.createShader(type);
-  if (!shader) throw new DisplayError('Could not allocate shader object.');
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    const log = gl.getShaderInfoLog(shader) ?? '<no info log>';
-    gl.deleteShader(shader);
-    throw new DisplayError(`Shader compile failed: ${log}`);
-  }
-  return shader;
 }
