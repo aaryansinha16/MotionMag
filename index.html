@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="description" content="See your pulse in your face. Browser-only Eulerian Video Magnification." />
+    <title>MotionMag</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/ui/styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="app__header">
+        <h1 class="app__title">MotionMag</h1>
+        <p class="app__tagline">See your pulse in your face. No pixels leave this page.</p>
+      </header>
+
+      <section class="app__stage">
+        <canvas id="output" class="app__canvas" width="640" height="480"></canvas>
+        <p id="status" class="app__status" role="status" aria-live="polite">Click Start to enable your camera.</p>
+      </section>
+
+      <section class="app__controls">
+        <button id="start" type="button" class="app__button">Start</button>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
