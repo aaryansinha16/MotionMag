@@ -31,6 +31,8 @@ export class PulseMeterError extends Error {
 export interface PulseMeter {
   recordFrame(video: HTMLVideoElement, bbox: ForeheadBBox): void;
   getBPM(): number | null;
+  /** Most recent raw mean-green sample (0..1). Used for low-light detection. */
+  getLastRawGreen(): number;
   reset(): void;
 }
 
@@ -56,6 +58,7 @@ export function initPulseMeter(): PulseMeter {
 
   let lastStableBPM: number | null = null;
   let prevReading: number | null = null;
+  let lastRawGreen = 0;
 
   function stepBiquad(x0: number): number {
     const y0 =
@@ -111,6 +114,7 @@ export function initPulseMeter(): PulseMeter {
   return {
     recordFrame(video, bbox) {
       const x0 = meanGreen(video, bbox);
+      lastRawGreen = x0;
       const y0 = stepBiquad(x0);
       filtered.push(y0);
       if (filtered.length > WINDOW_SAMPLES) filtered.shift();
@@ -128,6 +132,9 @@ export function initPulseMeter(): PulseMeter {
     getBPM() {
       return lastStableBPM;
     },
+    getLastRawGreen() {
+      return lastRawGreen;
+    },
     reset() {
       x1 = 0;
       x2 = 0;
@@ -136,6 +143,7 @@ export function initPulseMeter(): PulseMeter {
       filtered.length = 0;
       lastStableBPM = null;
       prevReading = null;
+      lastRawGreen = 0;
     },
   };
 }

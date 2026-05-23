@@ -14,6 +14,8 @@ export interface UIRefs {
   alphaValue: HTMLElement;
   roi: HTMLElement;
   bpm: HTMLElement;
+  warning: HTMLElement;
+  onboard: HTMLElement;
 }
 
 export function getUIRefs(): UIRefs {
@@ -26,6 +28,8 @@ export function getUIRefs(): UIRefs {
   const roi = document.querySelector<HTMLElement>('#roi');
   const bpm = document.querySelector<HTMLElement>('#bpm');
   const cogSelect = document.querySelector<HTMLSelectElement>('#cog');
+  const warning = document.querySelector<HTMLElement>('#warning');
+  const onboard = document.querySelector<HTMLElement>('#onboard');
 
   if (!startButton) throw new Error('UI: #start button not found');
   if (!canvas) throw new Error('UI: #output canvas not found');
@@ -36,10 +40,15 @@ export function getUIRefs(): UIRefs {
   if (!roi) throw new Error('UI: #roi element not found');
   if (!bpm) throw new Error('UI: #bpm element not found');
   if (!cogSelect) throw new Error('UI: #cog select not found');
+  if (!warning) throw new Error('UI: #warning element not found');
+  if (!onboard) throw new Error('UI: #onboard element not found');
 
   populateCogSelect(cogSelect);
 
-  return { startButton, canvas, status, cogSelect, perf, alphaInput, alphaValue, roi, bpm };
+  return {
+    startButton, canvas, status, cogSelect, perf,
+    alphaInput, alphaValue, roi, bpm, warning, onboard,
+  };
 }
 
 function populateCogSelect(select: HTMLSelectElement): void {
@@ -112,4 +121,49 @@ export function setBPM(refs: UIRefs, bpm: number | null, visible: boolean): void
 export function statusForCog(cog: Cog): string {
   const settle = cog.slowSettle ? ' Filter transient takes ~30–60 s for this band.' : '';
   return `Active: ${cog.displayName} — ${cog.description}${settle}`;
+}
+
+export function setWarning(refs: UIRefs, message: string | null): void {
+  if (message === null) {
+    refs.warning.hidden = true;
+    refs.warning.textContent = '';
+  } else {
+    refs.warning.hidden = false;
+    refs.warning.textContent = message;
+  }
+}
+
+const ONBOARD_SESSION_KEY = 'motionmag-onboarded';
+const ONBOARD_AUTO_DISMISS_MS = 8000;
+
+export function showOnboardingIfFirstTime(refs: UIRefs): void {
+  // sessionStorage scopes to the current tab; reload or new tab shows again.
+  // localStorage would persist across sessions, but we don't want
+  // "tried it months ago, forgot how it works" users to miss the hints.
+  let alreadySeen = false;
+  try {
+    alreadySeen = sessionStorage.getItem(ONBOARD_SESSION_KEY) === '1';
+  } catch {
+    // Private-mode Safari can throw on sessionStorage access — just show.
+  }
+  if (alreadySeen) return;
+
+  refs.onboard.hidden = false;
+  const dismiss = (): void => {
+    refs.onboard.hidden = true;
+    refs.onboard.removeEventListener('click', dismiss);
+    document.removeEventListener('keydown', onKey);
+    window.clearTimeout(autoTimer);
+    try {
+      sessionStorage.setItem(ONBOARD_SESSION_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+  };
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') dismiss();
+  };
+  refs.onboard.addEventListener('click', dismiss);
+  document.addEventListener('keydown', onKey);
+  const autoTimer = window.setTimeout(dismiss, ONBOARD_AUTO_DISMISS_MS);
 }
