@@ -7,10 +7,11 @@
 // pull in a CV megaframework wholesale"); the face-detector chunk only
 // loads when Start is clicked with a face-ROI cog active.
 //
-// Model + WASM are fetched from jsDelivr / Google's mediapipe-models CDN
-// on first activation. This is a deliberate one-time fetch on user action,
-// not a page-load request — the privacy story ("no pixels leave your
-// device") still holds. Self-hosting the model is an M5 polish task.
+// Model + WASM are served from our own origin under /wasm/ and /models/.
+// vite.config.ts copies the WASM mirror from node_modules at build start.
+// The model is committed to public/models/ (snapshot of MediaPipe's
+// `latest` from 2026-05-23). Self-hosting means DevTools → Network shows
+// zero third-party domains.
 
 import type { FaceLandmarker, FaceLandmarkerResult } from '@mediapipe/tasks-vision';
 
@@ -28,10 +29,9 @@ const FOREHEAD_RIGHT = 297;
 // Inset the bbox to avoid eyebrow / hair edge pixels.
 const FOREHEAD_INSET = 0.1;
 
-const WASM_BASE_URL =
-  'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
-const MODEL_URL =
-  'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task';
+// Served from our own origin — see vite.config.ts + public/models/.
+const WASM_BASE_URL = '/wasm';
+const MODEL_URL = '/models/face_landmarker.task';
 
 export class FaceROIError extends Error {
   constructor(message: string) {

@@ -8,6 +8,9 @@ dist/
 dist-ssr/
 *.local
 
+# MediaPipe WASM mirrored from node_modules on every build (see vite.config.ts)
+public/wasm/
+
 # Logs
 logs
 *.log
