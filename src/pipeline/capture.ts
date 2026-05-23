@@ -59,8 +59,23 @@ export class Camera {
     try {
       stream = await navigator.mediaDevices.getUserMedia(this.constraints);
     } catch (err) {
-      const reason = classifyError(err);
-      throw new CameraError(reason, messageFor(reason));
+      // Mobile Safari occasionally rejects the strict frameRate / size
+      // combo as OverconstrainedError even when it could serve the stream
+      // looser. Retry once with only `facingMode: 'user'` before giving up.
+      if (isOverconstrained(err)) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user' },
+            audio: false,
+          });
+        } catch (retryErr) {
+          const reason = classifyError(retryErr);
+          throw new CameraError(reason, messageFor(reason));
+        }
+      } else {
+        const reason = classifyError(err);
+        throw new CameraError(reason, messageFor(reason));
+      }
     }
 
     this.stream = stream;
@@ -93,6 +108,15 @@ export class Camera {
   isRunning(): boolean {
     return this.stream !== null;
   }
+}
+
+function isOverconstrained(err: unknown): boolean {
+  return (
+    err != null &&
+    typeof err === 'object' &&
+    'name' in err &&
+    String((err as { name: unknown }).name) === 'OverconstrainedError'
+  );
 }
 
 function classifyError(err: unknown): CameraFailureReason {
