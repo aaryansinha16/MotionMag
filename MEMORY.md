@@ -4,14 +4,18 @@
 
 ## Active milestone
 
-**M6 — Catalog expansion + deploy.**
+**v0.9 — Public-launch polish.** All v1.0 code is in `main`; remaining work is user-side and small.
 
-Acceptance: 10 cogs total, hosted on a live URL, hero GIF in the README. See `PROJECT_PLAN.md` for the full task list.
+The project is functionally complete at 8 cogs + a one-click GitHub Pages deploy. Before promoting to v1.0:
+1. Enable GitHub Pages in repo settings (Source: **GitHub Actions**). First push to `main` after that publishes the live URL.
+2. Record demo MP4s + hero GIF and drop into `public/demos/` (#41, manual).
+3. Run manual iPhone Safari + Android Chrome verification (#50, manual).
+4. Write launch artefacts (tweet thread + HN post) before posting publicly.
 
-Carry-overs into M6:
-- **Demo MP4 recordings (#41)** — still a manual user action.
-- **Manual iPhone / Android device test (#50)** — code-side polish landed in M5; on-device verification is user-side.
-- **Self-host MediaPipe WASM + model** — would restore the "no traffic after page load" claim. Worth its own PR before the public launch.
+Three cogs are designed but deferred because each needs a pipeline capability we don't have yet — get to 10/10 by tackling whichever lands first:
+- `string-vibration` (30–200 Hz) — needs ≥ 60 fps capture.
+- `screen-flicker` (50–120 Hz) — same Nyquist issue.
+- `breath-motion` — needs phase-based EVM (D-004).
 
 ## What's done
 
@@ -25,19 +29,19 @@ Carry-overs into M6:
 - **M3 complete (2026-05-23):** Lazy-loaded MediaPipe Face Landmarker (Vite chunk-split — main bundle stays at 8.22 KB gz), forehead bbox extraction (mesh indices 10/9/67/297 with 10% inset), scalar pulse meter that reuses `biquadBandpassCoeffs` from `temporal.ts`, BPM estimation via positive-going zero-crossings over a 10 s window with `[40, 200]` clamp and ±3 BPM stability gate, "♥ N BPM" overlay anchored top-left of the canvas. User confirmed BPM and ROI rectangle both work on the dev machine.
 - **M4 complete (2026-05-23):** Cog architecture in `src/cogs/` — `Cog` interface, registry, three shipping cogs (`pulse-finder`, `breath-from-color`, `tremor-amp`). Dropdown UI replaces the M1-era L0–L3 view radios; the level radios are no longer user-facing (still in git history for anyone who wants them). Live cog switching updates band, pyramid level, α default, ROI requirement, and postprocess without page reload.
 - **M5 complete (2026-05-23):** Mobile-best-practices polish — responsive CSS at ≤ 540 px with stacked controls + dvh viewport + 44 px tap targets, `getUserMedia` `OverconstrainedError` retry for Safari mobile, first-time onboarding overlay (sessionStorage-scoped), low-light warning piggy-backed on the pulse meter, in-page "How does this work?" explainer with inline-SVG pipeline diagram. On-device verification (#50) and demo MP4s (#41) deferred to M6.
+- **M6 complete (2026-05-23):** Catalog at **8 cogs** — added `micro-blush`, `flag-wave`, `glass-of-water`, `infant-breathing` (lite, no audible alert), `micro-expression` (lite, no slow-mo) on top of M4's three. MediaPipe model (3.6 MB committed) + WASM (mirrored from `node_modules` to `public/wasm/` at build start) self-hosted from our own origin — no third-party CDN fetches anywhere. GitHub Pages deploy workflow + `base: '/MotionMag/'` Vite config + `import.meta.env.BASE_URL`-prefixed runtime paths. `<noscript>` fallback explains what the page does for JS-disabled users. README rewritten with the 8-cog table, "how it works in 30 s", privacy-verification nudge, repo-layout pointer. **Bug fix:** M5's "Tap to dismiss" element was a `<p>` and iOS Safari wouldn't bubble its clicks; converted to a real `<button>` (PR #55).
 
-## What's next (M6 task list)
+## What's next (post-M6 punch list)
 
-1. Expand the catalog toward 10 cogs (see `PROJECT_PLAN.md` for the candidate list): `micro-blush`, `string-vibration`, `flag-wave`, `glass-of-water`, `screen-flicker`, `infant-breathing`, `micro-expression`. `breath-motion` deferred per D-004 (needs phase-based EVM).
-2. Hosting: pick a static host (GitHub Pages / Cloudflare Pages / Vercel); set up a build → deploy pipeline.
-3. Optional custom domain.
-4. Record the hero GIF for the README (5 s of pulsing face).
-5. Self-host MediaPipe WASM + model so the privacy story is airtight (carry-over).
-6. Launch artefacts: tweet thread + HN post draft.
-7. Record demo MP4s for the three shipping cogs (carry-over from #41).
-8. Manual iPhone / Android device validation (carry-over from #50).
-9. `<noscript>` fallback + a `<video>` poster of the demo for users who can't run WebGL2.
-10. Update this file's session log with what shipped, mark the project at v1.0.
+Code is done. Remaining steps before public launch:
+1. **Enable GitHub Pages** (Repo Settings → Pages → Source: **GitHub Actions**). The first push to `main` after enabling publishes `https://aaryansinha16.github.io/MotionMag/`.
+2. **Verify the live URL** end-to-end: clicking Start triggers WASM + model fetches from our own origin only (DevTools → Network — zero third-party requests).
+3. **Manual iPhone / Android device pass (#50)** — confirm ≥ 24 fps and the onboarding/UI work on real hardware.
+4. **Record demo MP4s for each cog (#41)** — drop into `public/demos/<cog-id>.mp4`. The README already references them (commented placeholders for now).
+5. **Cross-check BPM accuracy against a pulse-ox / smartwatch** (carry-over from M3).
+6. **Launch artefacts**: tweet thread + Hacker News post draft.
+7. **Path to 10/10 cogs**: pick one of (60 fps capture work) or (phase-based EVM — see `DECISIONS.md` D-004).
+8. Once the above is settled, tag a **v1.0** release.
 
 ## Open questions
 
@@ -89,6 +93,16 @@ console.debug(`frame: ${(performance.now() - t0).toFixed(2)}ms`);
 - Locked in tech stack: Vite + TS + WebGL2 + plain DOM. No backend, no framework.
 - Locked in algorithmic approach: color-based EVM first, IIR Butterworth bandpass, 4-level Gaussian pyramid, 640×480 capture.
 - Next session: scaffold Vite project and ship M0 (camera feed visible).
+
+### 2026-05-23 — M6 shipped (catalog → 8 cogs, self-hosted MediaPipe, GH Pages deploy)
+- Added `milestone-6` label; opened issues #56, #57, #58.
+- User reported an M5 bug between sessions: "Tap to dismiss" on the onboarding overlay didn't fire. Cause was an iOS Safari quirk where click events on non-interactive children (`<p>`) don't reliably bubble to a parent listener even with `cursor: pointer`. **PR #55 `fix/onboarding-tap-dismiss` (aa455aa)** converted the dismiss target to a real `<button type="button">` — clicks on real buttons bubble universally — and kept the overlay-wide click handler for tap-anywhere behaviour. Renamed the label to "Got it" for clarity.
+- **PR #59 `m6/expand-catalog` (86d0f02):** five new cog config files plus one registry line each. Catalog: `pulse-finder`, `micro-blush`, `micro-expression` (lite), `infant-breathing` (lite), `breath-from-color`, `tremor-amp`, `flag-wave`, `glass-of-water`. Registry groups face-ROI cogs first so MediaPipe lazy-load pays off across cog switches. `glass-of-water` runs at pyramid L0 (full res) because the thin meniscus is high-spatial-frequency; the others sit at L1 or L2. Filter coefficient stability sanity-checked across all five new bands. Two cogs (`string-vibration`, `screen-flicker`) deferred because their bands exceed the 30 fps Nyquist; `breath-motion` already deferred per D-004. M6 lands at **8/10 cogs**.
+- **PR #60 `m6/self-host-mediapipe` (f80a25d):** `public/models/face_landmarker.task` committed (3.6 MB snapshot of MediaPipe's `float16/latest`). New `copyMediaPipeWasm` Vite plugin mirrors the three SIMD WASM variants from `node_modules` → `public/wasm/` at `buildStart`; that dir is gitignored so the npm dep version stays the source of truth. `face-roi.ts` URLs now point at `${import.meta.env.BASE_URL}wasm` and `${import.meta.env.BASE_URL}models/face_landmarker.task`. **No third-party CDN requests on first Start.**
+- **PR #61 `m6/launch-prep` (4409a16):** `.github/workflows/deploy.yml` runs build + test + deploy-pages on every push to `main`. Vite `base` defaults to `'/MotionMag/'` (GitHub project pages URL), `BASE_PATH` env overrides for a future custom domain. `<noscript>` block in `index.html` shows a static explainer + GitHub link for JS-disabled users. README rewritten: lead with the 8-cog table, "how it works in 30 s", privacy-verification nudge, repo-layout pointer, the hero GIF reference is a placeholder until #41 lands.
+- Bundle after M6: main JS **25.46 KB / 9.43 KB gz**; vision_bundle chunk **125 KB / 38 KB gz** (lazy); model **3.6 MB** (committed); WASM **~11 MB wire** (one of three SIMD variants picked at runtime, mirrored from node_modules at build).
+- **What the user still has to do before public launch:** enable GH Pages → Source: GitHub Actions in repo settings; record demo MP4s (#41); do the iPhone/Android device verification (#50); cross-check BPM with a hardware monitor; draft the launch artefacts.
+- Self-merged through M6 per the same one-off override. Default rule (`Never self-merge` in `motionmag-workflow.md`) restores from next session.
 
 ### 2026-05-23 — M5 shipped (polish + mobile)
 - Added `milestone-5` label; opened issues #45–#50 (five implementation + one manual-test carry).
