@@ -31,6 +31,7 @@ import {
   FaceROIError,
   type FaceROIContext,
 } from './pipeline/face-roi';
+import { initPulseMeter, PulseMeterError, type PulseMeter } from './pipeline/pulse-meter';
 import {
   getAlpha,
   getSelectedLevel,
@@ -38,6 +39,7 @@ import {
   hideROI,
   onAlphaChange,
   onLevelChange,
+  setBPM,
   setStartEnabled,
   setStatus,
   showROI,
@@ -57,6 +59,7 @@ let temporal: TemporalContext | null = null;
 let amplify: AmplifyContext | null = null;
 let faceROI: FaceROIContext | null = null;
 let faceROILoading: Promise<FaceROIContext> | null = null;
+let pulseMeter: PulseMeter | null = null;
 let currentLevel = 0;
 let currentAlpha = 50;
 
@@ -82,12 +85,14 @@ async function handleStart(refs: UIRefs): Promise<void> {
     pyramid = initPyramid(display.gl);
     temporal = initTemporal(display.gl);
     amplify = initAmplify(display.gl);
+    pulseMeter = initPulseMeter();
   } catch (err) {
     if (
       err instanceof DisplayError ||
       err instanceof PyramidError ||
       err instanceof TemporalError ||
-      err instanceof AmplifyError
+      err instanceof AmplifyError ||
+      err instanceof PulseMeterError
     ) {
       setStatus(refs, err.message);
     } else {
@@ -129,7 +134,7 @@ async function handleStart(refs: UIRefs): Promise<void> {
       });
   }
 
-  pumpFrames(refs, camera.getVideoElement(), display, pyramid, temporal, amplify, perf);
+  pumpFrames(refs, camera.getVideoElement(), display, pyramid, temporal, amplify, pulseMeter, perf);
 }
 
 // requestVideoFrameCallback fires once per decoded video frame (Chrome 83+,
@@ -147,6 +152,7 @@ function pumpFrames(
   pyramidCtx: PyramidContext,
   temporalCtx: TemporalContext,
   amplifyCtx: AmplifyContext,
+  pulseMeterCtx: PulseMeter,
   perf: PerfMeter,
 ): void {
   const { gl } = displayCtx;
@@ -183,18 +189,25 @@ function pumpFrames(
       drawAmplified(amplifyCtx, displayCtx.inputTexture, filteredState, currentAlpha);
 
       // Face ROI is only meaningful in the pulse view. When the landmarker
-      // is ready, sample it and draw a debug rectangle so we can eyeball
-      // that we're tracking the right patch of forehead.
+      // is ready, sample it for the BPM meter and draw a debug rectangle.
       if (faceROI) {
         const bbox = detectForeheadBBox(faceROI, video, t0);
-        if (bbox) showROI(refs, bbox);
-        else hideROI(refs);
+        if (bbox) {
+          showROI(refs, bbox);
+          pulseMeterCtx.recordFrame(video, bbox);
+          setBPM(refs, pulseMeterCtx.getBPM(), true);
+        } else {
+          hideROI(refs);
+          setBPM(refs, null, true);
+        }
       } else {
         hideROI(refs);
+        setBPM(refs, null, false);
       }
     } else {
-      // Debug view: just render the requested pyramid level. Hide the ROI
-      // overlay since the L1–L3 textures don't share the pulse view's UVs.
+      // Debug view: just render the requested pyramid level. Hide both
+      // overlays since the L1–L3 textures don't share the pulse view's UVs
+      // and the BPM number isn't meaningful here.
       const view = getLevelView(
         pyramidCtx,
         displayCtx.inputTexture,
@@ -204,6 +217,7 @@ function pumpFrames(
       );
       drawTexture(displayCtx, view.texture);
       hideROI(refs);
+      setBPM(refs, null, false);
     }
 
     // gl.finish() forces the GPU to complete all queued work before returning,

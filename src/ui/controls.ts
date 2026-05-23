@@ -13,6 +13,7 @@ export interface UIRefs {
   alphaInput: HTMLInputElement;
   alphaValue: HTMLElement;
   roi: HTMLElement;
+  bpm: HTMLElement;
 }
 
 export function getUIRefs(): UIRefs {
@@ -23,6 +24,7 @@ export function getUIRefs(): UIRefs {
   const alphaInput = document.querySelector<HTMLInputElement>('#alpha');
   const alphaValue = document.querySelector<HTMLElement>('#alpha-value');
   const roi = document.querySelector<HTMLElement>('#roi');
+  const bpm = document.querySelector<HTMLElement>('#bpm');
   const levelInputs = Array.from(
     document.querySelectorAll<HTMLInputElement>('#level-picker input[type="radio"]'),
   );
@@ -34,13 +36,19 @@ export function getUIRefs(): UIRefs {
   if (!alphaInput) throw new Error('UI: #alpha input not found');
   if (!alphaValue) throw new Error('UI: #alpha-value output not found');
   if (!roi) throw new Error('UI: #roi element not found');
+  if (!bpm) throw new Error('UI: #bpm element not found');
   if (levelInputs.length !== PYRAMID_LEVEL_COUNT) {
     throw new Error(
       `UI: expected ${PYRAMID_LEVEL_COUNT} level radios, got ${levelInputs.length}`,
     );
   }
 
-  return { startButton, canvas, status, levelInputs, perf, alphaInput, alphaValue, roi };
+  return { startButton, canvas, status, levelInputs, perf, alphaInput, alphaValue, roi, bpm };
+}
+
+export function setBPM(refs: UIRefs, bpm: number | null, visible: boolean): void {
+  refs.bpm.hidden = !visible;
+  refs.bpm.textContent = bpm === null ? '— BPM' : `♥ ${Math.round(bpm)} BPM`;
 }
 
 export function showROI(refs: UIRefs, bbox: { xNorm: number; yNorm: number; widthNorm: number; heightNorm: number }): void {
