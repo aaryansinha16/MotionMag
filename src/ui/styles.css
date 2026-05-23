@@ -143,6 +143,13 @@ body {
   animation: app__onboard-fade 200ms ease;
 }
 
+/* Higher specificity than .app__onboard alone, so el.hidden = true wins
+   over the display: flex above. Without this the overlay stays visible
+   after the dismiss handler sets the hidden attribute. */
+.app__onboard[hidden] {
+  display: none;
+}
+
 @keyframes app__onboard-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
