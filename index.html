@@ -17,7 +17,10 @@
       </header>
 
       <section class="app__stage">
-        <canvas id="output" class="app__canvas" width="640" height="480"></canvas>
+        <div class="app__canvas-wrap">
+          <canvas id="output" class="app__canvas" width="640" height="480"></canvas>
+          <div id="perf" class="app__perf" aria-hidden="true">— fps · — ms</div>
+        </div>
         <p id="status" class="app__status" role="status" aria-live="polite">Click Start to enable your camera.</p>
       </section>
 

@@ -52,14 +52,34 @@ body {
   gap: 0.75rem;
 }
 
-.app__canvas {
+.app__canvas-wrap {
+  position: relative;
   width: 100%;
   max-width: 640px;
+}
+
+.app__canvas {
+  width: 100%;
   aspect-ratio: 4 / 3;
   background: var(--canvas-bg);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   display: block;
+}
+
+.app__perf {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #f3f6fa;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  user-select: none;
 }
 
 .app__status {

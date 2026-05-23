@@ -21,6 +21,7 @@ import {
   setStatus,
   type UIRefs,
 } from './ui/controls';
+import { initPerfMeter, type PerfMeter } from './ui/perf-overlay';
 
 const camera = new Camera();
 let display: DisplayContext | null = null;
@@ -58,8 +59,10 @@ async function handleStart(refs: UIRefs): Promise<void> {
     return;
   }
 
+  const perf = initPerfMeter(refs.perf);
+
   setStatus(refs, 'Streaming. Switch L0–L3 to inspect each pyramid level.');
-  pumpFrames(camera.getVideoElement(), display, pyramid);
+  pumpFrames(camera.getVideoElement(), display, pyramid, perf);
 }
 
 // requestVideoFrameCallback fires once per decoded video frame (Chrome 83+,
@@ -74,8 +77,12 @@ function pumpFrames(
   video: HTMLVideoElement,
   displayCtx: DisplayContext,
   pyramidCtx: PyramidContext,
+  perf: PerfMeter,
 ): void {
+  const { gl } = displayCtx;
+
   const step = (): void => {
+    const t0 = performance.now();
     if (!uploadVideoFrame(displayCtx, video)) return;
     processPyramid(
       pyramidCtx,
@@ -91,6 +98,12 @@ function pumpFrames(
       currentLevel,
     );
     drawTexture(displayCtx, view.texture);
+    // gl.finish() forces the GPU to complete all queued work before returning,
+    // so the timer captures real pipeline cost rather than just CPU dispatch
+    // (~1 ms regardless of GPU load). It adds a sync stall but it's the only
+    // way to verify the M1 "<16 ms/frame" budget without a timer-query ext.
+    gl.finish();
+    perf.recordFrame(performance.now() - t0);
   };
 
   const rvfc = (video as RVFCCapable).requestVideoFrameCallback;
