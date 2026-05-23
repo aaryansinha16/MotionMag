@@ -6,8 +6,8 @@
 
 **v0.9 — Public-launch polish.** All v1.0 code is in `main`; remaining work is user-side and small.
 
-The project is functionally complete at 8 cogs + a one-click GitHub Pages deploy. Before promoting to v1.0:
-1. Enable GitHub Pages in repo settings (Source: **GitHub Actions**). First push to `main` after that publishes the live URL.
+The project is functionally complete at 8 cogs + a one-click Vercel deploy. Before promoting to v1.0:
+1. Connect the GitHub repo to Vercel (vercel.com → Add New → Project → import `MotionMag`). Vercel auto-detects Vite via `vercel.json`; first build deploys to a generated `*.vercel.app` URL.
 2. Record demo MP4s + hero GIF and drop into `public/demos/` (#41, manual).
 3. Run manual iPhone Safari + Android Chrome verification (#50, manual).
 4. Write launch artefacts (tweet thread + HN post) before posting publicly.
@@ -34,7 +34,7 @@ Three cogs are designed but deferred because each needs a pipeline capability we
 ## What's next (post-M6 punch list)
 
 Code is done. Remaining steps before public launch:
-1. **Enable GitHub Pages** (Repo Settings → Pages → Source: **GitHub Actions**). The first push to `main` after enabling publishes `https://aaryansinha16.github.io/MotionMag/`.
+1. **Connect Vercel.** vercel.com → Add New → Project → import `aaryansinha16/MotionMag`. Vercel auto-detects Vite from `vercel.json`; the first build publishes to a `*.vercel.app` URL. (GH Pages on this account is occupied — see #63.)
 2. **Verify the live URL** end-to-end: clicking Start triggers WASM + model fetches from our own origin only (DevTools → Network — zero third-party requests).
 3. **Manual iPhone / Android device pass (#50)** — confirm ≥ 24 fps and the onboarding/UI work on real hardware.
 4. **Record demo MP4s for each cog (#41)** — drop into `public/demos/<cog-id>.mp4`. The README already references them (commented placeholders for now).

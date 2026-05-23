@@ -27,10 +27,10 @@ function copyMediaPipeWasm(): Plugin {
 }
 
 export default defineConfig({
-  // GitHub Pages serves project repos at https://<user>.github.io/<repo>/,
-  // so absolute URLs like `/wasm/...` resolve only after this prefix is
-  // applied. Set BASE_PATH=/ at build time for a custom-domain deploy.
-  base: process.env.BASE_PATH ?? '/MotionMag/',
+  // Vercel serves at the domain root, so the base is just '/'. If we ever
+  // re-add a subpath deploy (e.g. GitHub Pages on a project URL), override
+  // with `BASE_PATH=/repo-name/` in the build environment.
+  base: process.env.BASE_PATH ?? '/',
   plugins: [copyMediaPipeWasm()],
   server: {
     open: true,
