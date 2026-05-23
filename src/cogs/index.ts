@@ -1,0 +1,18 @@
+// Cog registry. Per D-006, each cog is a file in this directory exporting
+// a `Cog` object; the registry lists them by name. Auto-discovery via
+// `import.meta.glob` is the upgrade path once the catalog passes ~15.
+
+import type { Cog } from './types';
+import { pulseFinder } from './pulse-finder';
+
+const cogs: readonly Cog[] = [pulseFinder];
+
+export function getAllCogs(): readonly Cog[] {
+  return cogs;
+}
+
+export function getCogById(id: string): Cog | undefined {
+  return cogs.find((c) => c.id === id);
+}
+
+export { type Cog, type CogPostprocess, type CogROI } from './types';
