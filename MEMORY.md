@@ -4,11 +4,14 @@
 
 ## Active milestone
 
-**M5 — Polish + mobile.**
+**M6 — Catalog expansion + deploy.**
 
-Acceptance: iPhone 13 and Pixel 7 / Galaxy S22 hit 24 fps; time-to-wow under 10 s on three friends new to the demo. See `PROJECT_PLAN.md` for the full task list.
+Acceptance: 10 cogs total, hosted on a live URL, hero GIF in the README. See `PROJECT_PLAN.md` for the full task list.
 
-Carry-over from M4: **demo MP4 recording (issue #41)** — three short MP4s in `public/demos/<cog-id>.mp4` (manual user action, deferred since this session can't record video). Folds naturally into M5 polish.
+Carry-overs into M6:
+- **Demo MP4 recordings (#41)** — still a manual user action.
+- **Manual iPhone / Android device test (#50)** — code-side polish landed in M5; on-device verification is user-side.
+- **Self-host MediaPipe WASM + model** — would restore the "no traffic after page load" claim. Worth its own PR before the public launch.
 
 ## What's done
 
@@ -21,18 +24,20 @@ Carry-over from M4: **demo MP4 recording (issue #41)** — three short MP4s in `
 - **M2 complete (2026-05-23):** Per-pixel Butterworth biquad bandpass (RBJ cookbook) on the green channel at pyramid L2, amplification + reconstruction with an alpha slider (0–200, default 50). Pulse becomes visible after ~5–15 s filter transient. 7-test Vitest suite for biquad coefficient correctness and band response.
 - **M3 complete (2026-05-23):** Lazy-loaded MediaPipe Face Landmarker (Vite chunk-split — main bundle stays at 8.22 KB gz), forehead bbox extraction (mesh indices 10/9/67/297 with 10% inset), scalar pulse meter that reuses `biquadBandpassCoeffs` from `temporal.ts`, BPM estimation via positive-going zero-crossings over a 10 s window with `[40, 200]` clamp and ±3 BPM stability gate, "♥ N BPM" overlay anchored top-left of the canvas. User confirmed BPM and ROI rectangle both work on the dev machine.
 - **M4 complete (2026-05-23):** Cog architecture in `src/cogs/` — `Cog` interface, registry, three shipping cogs (`pulse-finder`, `breath-from-color`, `tremor-amp`). Dropdown UI replaces the M1-era L0–L3 view radios; the level radios are no longer user-facing (still in git history for anyone who wants them). Live cog switching updates band, pyramid level, α default, ROI requirement, and postprocess without page reload.
+- **M5 complete (2026-05-23):** Mobile-best-practices polish — responsive CSS at ≤ 540 px with stacked controls + dvh viewport + 44 px tap targets, `getUserMedia` `OverconstrainedError` retry for Safari mobile, first-time onboarding overlay (sessionStorage-scoped), low-light warning piggy-backed on the pulse meter, in-page "How does this work?" explainer with inline-SVG pipeline diagram. On-device verification (#50) and demo MP4s (#41) deferred to M6.
 
-## What's next (M5 task list)
+## What's next (M6 task list)
 
-1. Mobile-friendly responsive CSS: canvas + control bar scale gracefully on phone widths; touch-friendly tap targets.
-2. iPhone Safari pass: test the WebGL2 path, autoplay constraints, `getUserMedia` constraints (Safari is picky about `facingMode`), shader precision quirks.
-3. Android Chrome pass: test for any WebGL extension gaps (`EXT_color_buffer_float` is required by `temporal.ts`).
-4. In-page "How does this work?" explainer with the EVM block diagram.
-5. Lighting-condition warnings: detect very low light or visible 60 Hz flicker, suggest fixes.
-6. Onboarding overlay: "Sit still, face the camera, good lighting, wait 5 seconds."
-7. Record demo MP4s for each cog (carry-over from #41).
-8. Maybe: self-host MediaPipe WASM + model (carry-over open thread; would restore the "no traffic after page load" promise fully).
-9. Update this file's session log with what shipped and bump the active milestone to M6.
+1. Expand the catalog toward 10 cogs (see `PROJECT_PLAN.md` for the candidate list): `micro-blush`, `string-vibration`, `flag-wave`, `glass-of-water`, `screen-flicker`, `infant-breathing`, `micro-expression`. `breath-motion` deferred per D-004 (needs phase-based EVM).
+2. Hosting: pick a static host (GitHub Pages / Cloudflare Pages / Vercel); set up a build → deploy pipeline.
+3. Optional custom domain.
+4. Record the hero GIF for the README (5 s of pulsing face).
+5. Self-host MediaPipe WASM + model so the privacy story is airtight (carry-over).
+6. Launch artefacts: tweet thread + HN post draft.
+7. Record demo MP4s for the three shipping cogs (carry-over from #41).
+8. Manual iPhone / Android device validation (carry-over from #50).
+9. `<noscript>` fallback + a `<video>` poster of the demo for users who can't run WebGL2.
+10. Update this file's session log with what shipped, mark the project at v1.0.
 
 ## Open questions
 
@@ -84,6 +89,17 @@ console.debug(`frame: ${(performance.now() - t0).toFixed(2)}ms`);
 - Locked in tech stack: Vite + TS + WebGL2 + plain DOM. No backend, no framework.
 - Locked in algorithmic approach: color-based EVM first, IIR Butterworth bandpass, 4-level Gaussian pyramid, 640×480 capture.
 - Next session: scaffold Vite project and ship M0 (camera feed visible).
+
+### 2026-05-23 — M5 shipped (polish + mobile)
+- Added `milestone-5` label; opened issues #45–#50 (five implementation + one manual-test carry).
+- PR #51 `m5/responsive-mobile` (f9c4bd3): body uses `100dvh` with `100vh` fallback so iOS Safari's collapsing URL bar doesn't crop layout; `.app__button` min-height 44 px (Apple HIG / Material tap target); `@media (max-width: 540px)` stacks controls vertically and lets the cog dropdown + α slider stretch to full width. In `src/pipeline/capture.ts`, `getUserMedia` rejected with `OverconstrainedError` now retries once with `{ facingMode: 'user' }` — mobile Safari sometimes can't honour the strict 640×480 @ 30 fps but happily serves a usable lower-res stream the second time.
+- PR #52 `m5/onboarding-lighting` (183e9ed): first-time onboarding overlay (modal-style, dismissed by tap / Escape / Enter / Space or 8 s timeout; sessionStorage suppresses subsequent Starts in the same tab). Low-light warning piggy-backs on the green sample the pulse meter already computes — exposed `PulseMeter.getLastRawGreen()` on the interface; if it stays below 0.15 ([0,1] range) for 3 s while Pulse cog is active, an amber chip surfaces under the status line and recovers on its own. Lighting check only fires for cogs that sample skin pixels (only `pulse-finder` today).
+- PR #53 `m5/explainer` (8a3eadf): collapsible `<details>` block beneath the controls. Inline-SVG pipeline diagram (Camera → Pyramid → Bandpass → Amplify → Display) sized in `viewBox` coords so it scales with the canvas. Plain-language three-beat explanation plus a numbered step-by-step that ties each pipeline stage back to the cog architecture. Credit + link to Wu et al., MIT CSAIL 2012. No JS — vanilla `<details>`/`<summary>` and CSS `::after` for the +/− indicator.
+- Bundle after M5: **24.47 KB JS / 9.12 KB gzipped** main + 6.50 KB HTML / 2.34 KB gz (the SVG explainer is the heaviest non-JS asset now). Vision chunk unchanged at 125 KB / 38 KB gz, still on-demand.
+- **iPhone Safari / Android Chrome on-device tests are still pending (#50)** — what shipped is mobile-best-practices code; actual device verification requires user hands on a phone. Same story for demo MP4s (#41) — manual recording.
+- 60 Hz mains notch filter (`MEMORY.md` Q2): no change. The `[40, 200]` BPM clamp from M3 still covers the failure mode well enough; promote to a real notch when real-world data shows misbehaviour.
+- Self-merged through M5 per the same one-off override. Default rule (`Never self-merge` in `motionmag-workflow.md`) restores from next session.
+- Next session: M6 — catalog expansion toward 10 cogs (micro-blush, string-vibration, flag-wave, glass-of-water, screen-flicker, infant-breathing, micro-expression), pick a static host, record the hero GIF, ideally self-host MediaPipe to close the privacy story before public launch.
 
 ### 2026-05-23 — M4 shipped (cog architecture + three cogs)
 - Added `milestone-4` and `cog` labels; opened issues #35–#41 (six implementation + one carry-over for demo MP4s).
