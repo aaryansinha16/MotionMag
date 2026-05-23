@@ -148,10 +148,18 @@ export function showOnboardingIfFirstTime(refs: UIRefs): void {
   }
   if (alreadySeen) return;
 
+  // The dismiss button is rendered inside the overlay div; we look it up
+  // here rather than threading it through UIRefs so the rest of the app
+  // doesn't see an element that only exists for this one ephemeral flow.
+  const dismissButton = refs.onboard.querySelector<HTMLButtonElement>(
+    '#onboard-dismiss',
+  );
+
   refs.onboard.hidden = false;
   const dismiss = (): void => {
     refs.onboard.hidden = true;
     refs.onboard.removeEventListener('click', dismiss);
+    dismissButton?.removeEventListener('click', onButton);
     document.removeEventListener('keydown', onKey);
     window.clearTimeout(autoTimer);
     try {
@@ -160,9 +168,18 @@ export function showOnboardingIfFirstTime(refs: UIRefs): void {
       /* ignore */
     }
   };
+  const onButton = (e: MouseEvent): void => {
+    // Stop bubbling so the overlay-wide click listener doesn't double-fire
+    // dismiss (idempotent today, but cheap to be defensive).
+    e.stopPropagation();
+    dismiss();
+  };
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') dismiss();
   };
+  // Three dismiss paths: explicit button click (most reliable across UAs),
+  // tap anywhere on the backdrop, and Escape / Enter / Space keypress.
+  dismissButton?.addEventListener('click', onButton);
   refs.onboard.addEventListener('click', dismiss);
   document.addEventListener('keydown', onKey);
   const autoTimer = window.setTimeout(dismiss, ONBOARD_AUTO_DISMISS_MS);
