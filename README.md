@@ -9,7 +9,7 @@
 
 ## Try it
 
-> *(deployed URL goes here after the GitHub Pages workflow lands the first publish)*
+> *(deployed URL goes here after the first Vercel publish)*
 
 Locally:
 
