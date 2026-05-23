@@ -17,7 +17,10 @@ html,
 body {
   margin: 0;
   padding: 0;
-  min-height: 100%;
+  /* `dvh` follows the collapsing URL bar on iOS Safari; fallback for older
+     UAs that don't know it. */
+  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
   color: var(--fg);
 }
@@ -187,7 +190,9 @@ body {
   color: var(--accent-fg);
   font: inherit;
   font-weight: 600;
-  padding: 0.7rem 1.5rem;
+  padding: 0.85rem 1.5rem;
+  /* 44 px minimum tap target per Apple HIG / Material guidelines. */
+  min-height: 44px;
   border-radius: 999px;
   cursor: pointer;
   transition: transform 80ms ease, opacity 120ms ease;
@@ -205,4 +210,49 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+}
+
+/* Narrow-screen layout: stack controls vertically, let the slider stretch,
+   give pill containers room to breathe. Tuned at 540px because the Start
+   button + cog dropdown + α pill fit on one row above that. */
+@media (max-width: 540px) {
+  .app {
+    padding: 1.25rem 0.75rem;
+    gap: 1rem;
+  }
+
+  .app__controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .app__cog,
+  .app__alpha {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .app__cog-select {
+    min-width: 0;
+    flex: 1 1 auto;
+    min-height: 32px;
+  }
+
+  .app__alpha input[type='range'] {
+    width: auto;
+    flex: 1 1 auto;
+    min-height: 32px;
+  }
+
+  .app__button {
+    width: 100%;
+  }
+
+  .app__perf,
+  .app__bpm {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.45rem;
+  }
 }
