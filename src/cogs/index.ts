@@ -4,10 +4,26 @@
 
 import type { Cog } from './types';
 import { breathFromColor } from './breath-from-color';
+import { flagWave } from './flag-wave';
+import { glassOfWater } from './glass-of-water';
+import { infantBreathing } from './infant-breathing';
+import { microBlush } from './micro-blush';
+import { microExpression } from './micro-expression';
 import { pulseFinder } from './pulse-finder';
 import { tremorAmp } from './tremor-amp';
 
-const cogs: readonly Cog[] = [pulseFinder, breathFromColor, tremorAmp];
+const cogs: readonly Cog[] = [
+  // Face-ROI cogs (need MediaPipe Face Landmarker).
+  pulseFinder,
+  microBlush,
+  microExpression,
+  infantBreathing,
+  // Full-frame cogs (no face detection, lighter to start).
+  breathFromColor,
+  tremorAmp,
+  flagWave,
+  glassOfWater,
+];
 
 export function getAllCogs(): readonly Cog[] {
   return cogs;
