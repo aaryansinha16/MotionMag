@@ -57,6 +57,88 @@
           <input id="alpha" type="range" min="0" max="200" value="50" step="1" />
         </label>
       </section>
+
+      <details class="app__explain">
+        <summary class="app__explain-summary">How does this work?</summary>
+        <div class="app__explain-body">
+          <p>
+            Every heartbeat pushes a small wave of blood through the capillaries in
+            your face. Your skin reddens by less than a percent with each beat — far
+            below what your eye can resolve. MotionMag isolates that almost-invisible
+            change and multiplies it until it crosses the threshold of human sight.
+          </p>
+
+          <p>The pipeline runs entirely in your browser, in WebGL2:</p>
+
+          <svg
+            class="app__explain-diagram"
+            viewBox="0 0 640 80"
+            role="img"
+            aria-label="Pipeline: Camera, Pyramid, Bandpass, Amplify, Display"
+          >
+            <defs>
+              <marker
+                id="arrow-head"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+              </marker>
+            </defs>
+            <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" text-anchor="middle">
+              <rect x="6"   y="22" width="100" height="36" rx="8" fill="rgba(255,84,112,0.12)" stroke="#ff5470" />
+              <text x="56"  y="44">Camera</text>
+              <rect x="138" y="22" width="100" height="36" rx="8" fill="rgba(255,84,112,0.12)" stroke="#ff5470" />
+              <text x="188" y="44">Pyramid</text>
+              <rect x="270" y="22" width="100" height="36" rx="8" fill="rgba(255,84,112,0.12)" stroke="#ff5470" />
+              <text x="320" y="44">Bandpass</text>
+              <rect x="402" y="22" width="100" height="36" rx="8" fill="rgba(255,84,112,0.12)" stroke="#ff5470" />
+              <text x="452" y="44">Amplify</text>
+              <rect x="534" y="22" width="100" height="36" rx="8" fill="rgba(255,84,112,0.12)" stroke="#ff5470" />
+              <text x="584" y="44">Display</text>
+              <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#arrow-head)">
+                <line x1="106" y1="40" x2="138" y2="40" />
+                <line x1="238" y1="40" x2="270" y2="40" />
+                <line x1="370" y1="40" x2="402" y2="40" />
+                <line x1="502" y1="40" x2="534" y2="40" />
+              </g>
+            </g>
+          </svg>
+
+          <ol class="app__explain-steps">
+            <li>
+              <strong>Pyramid.</strong> Build a 4-level Gaussian pyramid of every frame
+              so we can pick the spatial scale that matches the signal (pulse lives at
+              the coarse end; tremor lives near the original resolution).
+            </li>
+            <li>
+              <strong>Bandpass.</strong> Run a per-pixel Butterworth biquad bandpass
+              tuned to the cog's frequency band (0.8–2.5 Hz for the pulse cog).
+              Everything outside that band — slow lighting drift, fast camera noise —
+              gets thrown away.
+            </li>
+            <li>
+              <strong>Amplify &amp; reconstruct.</strong> Multiply what's left by α
+              (default 50×) and add it back to the original frame. The 0.5% skin-color
+              wobble becomes a 25% wobble; your heartbeat shows up on screen.
+            </li>
+          </ol>
+
+          <p class="app__explain-credit">
+            Based on
+            <a
+              href="http://people.csail.mit.edu/mrub/papers/vidmag.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Wu et al., MIT CSAIL 2012</a
+            >. Open DevTools → Network — nothing leaves your device.
+          </p>
+        </div>
+      </details>
     </main>
 
     <script type="module" src="/src/main.ts"></script>

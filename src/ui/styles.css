@@ -176,6 +176,89 @@ body {
   letter-spacing: 0.08em;
 }
 
+.app__explain {
+  width: 100%;
+  max-width: 640px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.app__explain[open] {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.app__explain-summary {
+  cursor: pointer;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--fg);
+  list-style: none;
+}
+
+.app__explain-summary::-webkit-details-marker {
+  display: none;
+}
+
+.app__explain-summary::after {
+  content: '+';
+  float: right;
+  color: var(--muted);
+  font-weight: 400;
+  transition: transform 150ms ease;
+  display: inline-block;
+}
+
+.app__explain[open] .app__explain-summary::after {
+  content: '−';
+}
+
+.app__explain-summary:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+}
+
+.app__explain-body {
+  padding: 0 1rem 1rem;
+  color: var(--fg);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  text-align: left;
+}
+
+.app__explain-body p {
+  margin: 0.6rem 0;
+}
+
+.app__explain-diagram {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0.8rem 0;
+  color: var(--muted);
+}
+
+.app__explain-steps {
+  margin: 0.4rem 0;
+  padding-left: 1.2rem;
+}
+
+.app__explain-steps li {
+  margin: 0.4rem 0;
+}
+
+.app__explain-credit {
+  margin-top: 1rem !important;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.app__explain-credit a {
+  color: var(--accent);
+  text-decoration: underline dotted;
+}
+
 .app__controls {
   display: flex;
   flex-wrap: wrap;
