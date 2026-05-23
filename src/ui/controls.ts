@@ -12,6 +12,7 @@ export interface UIRefs {
   perf: HTMLElement;
   alphaInput: HTMLInputElement;
   alphaValue: HTMLElement;
+  roi: HTMLElement;
 }
 
 export function getUIRefs(): UIRefs {
@@ -21,6 +22,7 @@ export function getUIRefs(): UIRefs {
   const perf = document.querySelector<HTMLElement>('#perf');
   const alphaInput = document.querySelector<HTMLInputElement>('#alpha');
   const alphaValue = document.querySelector<HTMLElement>('#alpha-value');
+  const roi = document.querySelector<HTMLElement>('#roi');
   const levelInputs = Array.from(
     document.querySelectorAll<HTMLInputElement>('#level-picker input[type="radio"]'),
   );
@@ -31,13 +33,26 @@ export function getUIRefs(): UIRefs {
   if (!perf) throw new Error('UI: #perf element not found');
   if (!alphaInput) throw new Error('UI: #alpha input not found');
   if (!alphaValue) throw new Error('UI: #alpha-value output not found');
+  if (!roi) throw new Error('UI: #roi element not found');
   if (levelInputs.length !== PYRAMID_LEVEL_COUNT) {
     throw new Error(
       `UI: expected ${PYRAMID_LEVEL_COUNT} level radios, got ${levelInputs.length}`,
     );
   }
 
-  return { startButton, canvas, status, levelInputs, perf, alphaInput, alphaValue };
+  return { startButton, canvas, status, levelInputs, perf, alphaInput, alphaValue, roi };
+}
+
+export function showROI(refs: UIRefs, bbox: { xNorm: number; yNorm: number; widthNorm: number; heightNorm: number }): void {
+  refs.roi.hidden = false;
+  refs.roi.style.left = `${(bbox.xNorm * 100).toFixed(2)}%`;
+  refs.roi.style.top = `${(bbox.yNorm * 100).toFixed(2)}%`;
+  refs.roi.style.width = `${(bbox.widthNorm * 100).toFixed(2)}%`;
+  refs.roi.style.height = `${(bbox.heightNorm * 100).toFixed(2)}%`;
+}
+
+export function hideROI(refs: UIRefs): void {
+  refs.roi.hidden = true;
 }
 
 export function setStatus(refs: UIRefs, message: string): void {

@@ -67,6 +67,14 @@ body {
   display: block;
 }
 
+.app__roi {
+  position: absolute;
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
 .app__perf {
   position: absolute;
   top: 0.6rem;
