@@ -30,8 +30,11 @@ const FOREHEAD_RIGHT = 297;
 const FOREHEAD_INSET = 0.1;
 
 // Served from our own origin — see vite.config.ts + public/models/.
-const WASM_BASE_URL = '/wasm';
-const MODEL_URL = '/models/face_landmarker.task';
+// import.meta.env.BASE_URL is "/" in dev and "/MotionMag/" (or whatever
+// Vite's `base` is) in production builds, so the paths resolve correctly
+// whether the site is at the domain root or under a repo subpath.
+const WASM_BASE_URL = `${import.meta.env.BASE_URL}wasm`;
+const MODEL_URL = `${import.meta.env.BASE_URL}models/face_landmarker.task`;
 
 export class FaceROIError extends Error {
   constructor(message: string) {
