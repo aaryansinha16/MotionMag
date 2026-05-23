@@ -4,9 +4,11 @@
 
 ## Active milestone
 
-**M4 — Cog architecture + first three cogs.**
+**M5 — Polish + mobile.**
 
-Acceptance: three cogs visible in a dropdown (pulse-finder, breath-from-color, tremor-amp), switching between them works without page reload or pipeline errors, each cog has a 5-second demo MP4 in `public/demos/`. See `PROJECT_PLAN.md` for the full task list.
+Acceptance: iPhone 13 and Pixel 7 / Galaxy S22 hit 24 fps; time-to-wow under 10 s on three friends new to the demo. See `PROJECT_PLAN.md` for the full task list.
+
+Carry-over from M4: **demo MP4 recording (issue #41)** — three short MP4s in `public/demos/<cog-id>.mp4` (manual user action, deferred since this session can't record video). Folds naturally into M5 polish.
 
 ## What's done
 
@@ -17,18 +19,20 @@ Acceptance: three cogs visible in a dropdown (pulse-finder, breath-from-color, t
 - **M0 complete (2026-05-23):** Vite + TS strict scaffold, baseline UI shell, `Camera` class wrapping `getUserMedia` at 640×480 @ 30fps, webcam feed renders on a 2D canvas via `requestVideoFrameCallback`. Manually verified end-to-end on dev machine.
 - **M1 complete (2026-05-23):** WebGL2 substrate, per-frame texture upload, 4-level Gaussian pyramid on the GPU, L0–L3 level picker, FPS + per-frame-ms overlay. All four pyramid levels render correctly; budget verified on dev machine.
 - **M2 complete (2026-05-23):** Per-pixel Butterworth biquad bandpass (RBJ cookbook) on the green channel at pyramid L2, amplification + reconstruction with an alpha slider (0–200, default 50). Pulse becomes visible after ~5–15 s filter transient. 7-test Vitest suite for biquad coefficient correctness and band response.
-- **M3 complete (2026-05-23):** Lazy-loaded MediaPipe Face Landmarker (Vite chunk-split — main bundle stays at 8.22 KB gz), forehead bbox extraction (mesh indices 10/9/67/297 with 10% inset), scalar pulse meter that reuses `biquadBandpassCoeffs` from `temporal.ts`, BPM estimation via positive-going zero-crossings over a 10 s window with `[40, 200]` clamp and ±3 BPM stability gate, "♥ N BPM" overlay anchored top-left of the canvas.
+- **M3 complete (2026-05-23):** Lazy-loaded MediaPipe Face Landmarker (Vite chunk-split — main bundle stays at 8.22 KB gz), forehead bbox extraction (mesh indices 10/9/67/297 with 10% inset), scalar pulse meter that reuses `biquadBandpassCoeffs` from `temporal.ts`, BPM estimation via positive-going zero-crossings over a 10 s window with `[40, 200]` clamp and ±3 BPM stability gate, "♥ N BPM" overlay anchored top-left of the canvas. User confirmed BPM and ROI rectangle both work on the dev machine.
+- **M4 complete (2026-05-23):** Cog architecture in `src/cogs/` — `Cog` interface, registry, three shipping cogs (`pulse-finder`, `breath-from-color`, `tremor-amp`). Dropdown UI replaces the M1-era L0–L3 view radios; the level radios are no longer user-facing (still in git history for anyone who wants them). Live cog switching updates band, pyramid level, α default, ROI requirement, and postprocess without page reload.
 
-## What's next (M4 task list)
+## What's next (M5 task list)
 
-1. Define the `Cog` interface in `src/cogs/types.ts` (matches what's already in `CLAUDE.md`: `id`, `displayName`, `bandHz`, `amplification`, `pyramidLevel`, `roi?`, `postprocess?`).
-2. Create the cog registry `src/cogs/index.ts` and a `getAllCogs()` accessor.
-3. Refactor the current pulse demo into `src/cogs/pulse-finder.ts` — moves the hard-coded constants (`TEMPORAL_LEVEL = 2`, default α, band 0.8–2.5 Hz, ROI = forehead, BPM postprocess) into a single cog object.
-4. Add `src/cogs/breath-from-color.ts` — same pipeline, band 0.1–0.5 Hz, no BPM display, just visible breathing-rate color shift on the face.
-5. Add `src/cogs/tremor-amp.ts` — full-frame (no ROI), band 4–12 Hz, useful for hand-tremor visualisation; pyramid level 0 or 1.
-6. Replace the L0/L1/L2/L3 view radios with a cog dropdown (debug levels can stay as a separate hidden-by-default toggle).
-7. Record a 5 s demo MP4 per cog into `public/demos/`.
-8. Update this file's session log with what shipped and bump the active milestone to M5.
+1. Mobile-friendly responsive CSS: canvas + control bar scale gracefully on phone widths; touch-friendly tap targets.
+2. iPhone Safari pass: test the WebGL2 path, autoplay constraints, `getUserMedia` constraints (Safari is picky about `facingMode`), shader precision quirks.
+3. Android Chrome pass: test for any WebGL extension gaps (`EXT_color_buffer_float` is required by `temporal.ts`).
+4. In-page "How does this work?" explainer with the EVM block diagram.
+5. Lighting-condition warnings: detect very low light or visible 60 Hz flicker, suggest fixes.
+6. Onboarding overlay: "Sit still, face the camera, good lighting, wait 5 seconds."
+7. Record demo MP4s for each cog (carry-over from #41).
+8. Maybe: self-host MediaPipe WASM + model (carry-over open thread; would restore the "no traffic after page load" promise fully).
+9. Update this file's session log with what shipped and bump the active milestone to M6.
 
 ## Open questions
 
@@ -80,6 +84,18 @@ console.debug(`frame: ${(performance.now() - t0).toFixed(2)}ms`);
 - Locked in tech stack: Vite + TS + WebGL2 + plain DOM. No backend, no framework.
 - Locked in algorithmic approach: color-based EVM first, IIR Butterworth bandpass, 4-level Gaussian pyramid, 640×480 capture.
 - Next session: scaffold Vite project and ship M0 (camera feed visible).
+
+### 2026-05-23 — M4 shipped (cog architecture + three cogs)
+- Added `milestone-4` and `cog` labels; opened issues #35–#41 (six implementation + one carry-over for demo MP4s).
+- User confirmed M3 works on the dev machine: BPM overlay reads sensible numbers, ROI rectangle lands on the forehead. BPM accuracy validation deferred until they have a BPM monitor on hand.
+- PR #42 `m4/cog-architecture` (aa4b2ab): added `src/cogs/{types,index,pulse-finder}.ts`. `main.ts` no longer hard-codes `TEMPORAL_LEVEL = 2` or the L0/L1/L2/L3 view switch — pipeline reads band, pyramid level, α default, ROI requirement, and postprocess from the active cog. `applyActiveCog` handles live switches (re-points `setTemporalBand`, resets `pulseMeter`, snaps α slider to cog default, lazy-loads MediaPipe only when ROI = 'forehead'). UI: `<fieldset id="level-picker">` replaced by `<select id="cog">` populated from the registry at startup. Pulse view behaves identically to M3.
+- PR #43 `m4/cogs-breath-tremor` (e29b457): added `src/cogs/breath-from-color.ts` (0.1–0.5 Hz, full-frame, L2, α=100, `slowSettle: true`) and `src/cogs/tremor-amp.ts` (4–12 Hz, full-frame, L1, α=30). Both files are pure config — no pipeline changes — which is the "platform, not demo" architectural payoff of #42 actually paying out. Filter coefficient sanity for both bands verified (Q + ω₀ within stable / well-behaved ranges).
+- **Divergence from CLAUDE.md** in `src/cogs/types.ts`: `postprocess` is a string discriminator (`'pulse-bpm'`) instead of a closure. Closure form would need to reach into pulse-meter scalar state — coupling that isn't paying for itself with one postprocess kind. Documented inline; promote to a closure when a second postprocess type lands.
+- Bundle after M4: **23.18 KB JS / 8.69 KB gzipped** main + **125 KB / 38 KB gz** on-demand `vision_bundle` chunk. Initial-bundle budget intact (still ~4 % of the 200 KB ceiling).
+- Demo MP4s (#41) deferred to M5 as a manual recording task — code can't ship the videos.
+- Open quality threads carried forward: `index.html` location (M0); state-texture NEAREST upsample blockiness (M2); green-only filtering (M2); third-party CDN fetches for MediaPipe WASM + model on first Start (M3); explicit 60 Hz mains notch filter (M3, handled by the BPM clamp until data shows misbehaviour).
+- Self-merged through M4 per the same one-off override. Default rule (`Never self-merge` in `motionmag-workflow.md`) restores from the next session.
+- Next session: M5 — mobile compatibility (iPhone Safari, Android Chrome), responsive CSS, in-page explainer, lighting-condition warnings, onboarding overlay, demo MP4 recordings.
 
 ### 2026-05-23 — M3 shipped (face ROI + scalar pulse meter + BPM overlay)
 - Added `milestone-3` label; opened issues #26–#31 (one per M3 task).
