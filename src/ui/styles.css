@@ -128,6 +128,30 @@ body {
   margin: 0;
 }
 
+.app__alpha {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--fg);
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.app__alpha output {
+  display: inline-block;
+  min-width: 2.5rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.app__alpha input[type='range'] {
+  width: 8rem;
+  accent-color: var(--accent);
+}
+
 .app__button {
   appearance: none;
   border: 0;
