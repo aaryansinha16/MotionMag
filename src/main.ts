@@ -43,6 +43,8 @@ import {
   setBPM,
   setStartEnabled,
   setStatus,
+  setWarning,
+  showOnboardingIfFirstTime,
   showROI,
   statusForCog,
   type UIRefs,
@@ -50,6 +52,12 @@ import {
 import { initPerfMeter, type PerfMeter } from './ui/perf-overlay';
 
 const SAMPLE_RATE_HZ = 30;
+// Mean green inside the forehead ROI below this threshold ([0,1]) for
+// LOW_LIGHT_FRAMES consecutive frames triggers a "more light" warning.
+// Calibrated by hand against typical indoor lighting; tune in PR follow-ups
+// once we have real-world data.
+const LOW_LIGHT_THRESHOLD = 0.15;
+const LOW_LIGHT_FRAMES = SAMPLE_RATE_HZ * 3;
 
 const camera = new Camera();
 let display: DisplayContext | null = null;
@@ -61,9 +69,11 @@ let faceROILoading: Promise<FaceROIContext> | null = null;
 let pulseMeter: PulseMeter | null = null;
 let currentCog: Cog;
 let currentAlpha: number;
+let lowLightCounter = 0;
 
 async function handleStart(refs: UIRefs): Promise<void> {
   setStartEnabled(refs, false);
+  showOnboardingIfFirstTime(refs);
   setStatus(refs, 'Requesting camera permission…');
 
   try {
@@ -155,6 +165,9 @@ function applyActiveCog(refs: UIRefs, cog: Cog): void {
     hideROI(refs);
     setBPM(refs, null, false);
   }
+  // Lighting warning is only meaningful in cogs that sample skin pixels.
+  setWarning(refs, null);
+  lowLightCounter = 0;
 }
 
 // requestVideoFrameCallback fires once per decoded video frame (Chrome 83+,
@@ -216,6 +229,18 @@ function pumpFrames(
         if (currentCog.postprocess === 'pulse-bpm') {
           pulseMeterCtx.recordFrame(video, bbox);
           setBPM(refs, pulseMeterCtx.getBPM(), true);
+          // Low-light check: piggyback on the green sample the pulse meter
+          // already computed. Trigger after a few seconds of darkness so a
+          // hand momentarily covering the camera doesn't spam the warning.
+          if (pulseMeterCtx.getLastRawGreen() < LOW_LIGHT_THRESHOLD) {
+            lowLightCounter++;
+            if (lowLightCounter === LOW_LIGHT_FRAMES) {
+              setWarning(refs, 'Need more light — point at a window or turn on a lamp.');
+            }
+          } else if (lowLightCounter > 0) {
+            lowLightCounter = 0;
+            setWarning(refs, null);
+          }
         }
       } else {
         hideROI(refs);
@@ -226,6 +251,10 @@ function pumpFrames(
     } else {
       hideROI(refs);
       setBPM(refs, null, false);
+      if (lowLightCounter > 0) {
+        lowLightCounter = 0;
+        setWarning(refs, null);
+      }
     }
 
     // gl.finish() forces the GPU to complete all queued work before returning,

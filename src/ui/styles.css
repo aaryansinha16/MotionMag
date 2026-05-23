@@ -116,6 +116,66 @@ body {
   min-height: 1.25rem;
 }
 
+.app__warning {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #ffcc66;
+  background: rgba(255, 204, 102, 0.08);
+  border: 1px solid rgba(255, 204, 102, 0.3);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+  min-height: 1.25rem;
+}
+
+.app__onboard {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-radius: 12px;
+  cursor: pointer;
+  z-index: 5;
+  animation: app__onboard-fade 200ms ease;
+}
+
+@keyframes app__onboard-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.app__onboard-card {
+  text-align: left;
+  max-width: 22rem;
+  color: var(--fg);
+}
+
+.app__onboard-title {
+  margin: 0 0 0.6rem;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+}
+
+.app__onboard-list {
+  margin: 0 0 0.75rem;
+  padding-left: 1.1rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #e0e6ef;
+}
+
+.app__onboard-dismiss {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .app__controls {
   display: flex;
   flex-wrap: wrap;

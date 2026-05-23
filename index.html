@@ -22,8 +22,26 @@
           <div id="roi" class="app__roi" aria-hidden="true" hidden></div>
           <div id="bpm" class="app__bpm" role="status" aria-live="polite" hidden>— BPM</div>
           <div id="perf" class="app__perf" aria-hidden="true">— fps · — ms</div>
+          <div
+            id="onboard"
+            class="app__onboard"
+            role="dialog"
+            aria-labelledby="onboard-title"
+            hidden
+          >
+            <div class="app__onboard-card">
+              <h2 id="onboard-title" class="app__onboard-title">Sit still &amp; face the camera</h2>
+              <ul class="app__onboard-list">
+                <li>Good lighting (a window or a bright lamp works).</li>
+                <li>Sit still — the pulse takes ~10 s to surface.</li>
+                <li>No pixels leave your device.</li>
+              </ul>
+              <p class="app__onboard-dismiss">Tap to dismiss</p>
+            </div>
+          </div>
         </div>
         <p id="status" class="app__status" role="status" aria-live="polite">Click Start to enable your camera.</p>
+        <p id="warning" class="app__warning" role="status" aria-live="polite" hidden></p>
       </section>
 
       <section class="app__controls">
