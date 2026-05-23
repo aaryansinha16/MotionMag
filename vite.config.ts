@@ -27,6 +27,10 @@ function copyMediaPipeWasm(): Plugin {
 }
 
 export default defineConfig({
+  // GitHub Pages serves project repos at https://<user>.github.io/<repo>/,
+  // so absolute URLs like `/wasm/...` resolve only after this prefix is
+  // applied. Set BASE_PATH=/ at build time for a custom-domain deploy.
+  base: process.env.BASE_PATH ?? '/MotionMag/',
   plugins: [copyMediaPipeWasm()],
   server: {
     open: true,
