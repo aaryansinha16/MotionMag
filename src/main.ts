@@ -26,13 +26,21 @@ import {
   type AmplifyContext,
 } from './pipeline/amplify';
 import {
+  detectForeheadBBox,
+  initFaceROI,
+  FaceROIError,
+  type FaceROIContext,
+} from './pipeline/face-roi';
+import {
   getAlpha,
   getSelectedLevel,
   getUIRefs,
+  hideROI,
   onAlphaChange,
   onLevelChange,
   setStartEnabled,
   setStatus,
+  showROI,
   type UIRefs,
 } from './ui/controls';
 import { initPerfMeter, type PerfMeter } from './ui/perf-overlay';
@@ -47,6 +55,8 @@ let display: DisplayContext | null = null;
 let pyramid: PyramidContext | null = null;
 let temporal: TemporalContext | null = null;
 let amplify: AmplifyContext | null = null;
+let faceROI: FaceROIContext | null = null;
+let faceROILoading: Promise<FaceROIContext> | null = null;
 let currentLevel = 0;
 let currentAlpha = 50;
 
@@ -94,7 +104,32 @@ async function handleStart(refs: UIRefs): Promise<void> {
     refs,
     'Streaming. Sit still and watch — pulse becomes visible in 5–15 s as the filter settles.',
   );
-  pumpFrames(camera.getVideoElement(), display, pyramid, temporal, amplify, perf);
+
+  // Kick off the lazy MediaPipe load on first Start. Detection runs in the
+  // frame pump only once the landmarker resolves; until then the pulse view
+  // still works without an ROI overlay.
+  if (!faceROI && !faceROILoading) {
+    setStatus(refs, 'Loading face detector…');
+    faceROILoading = initFaceROI()
+      .then((ctx) => {
+        faceROI = ctx;
+        setStatus(
+          refs,
+          'Streaming. Sit still — pulse becomes visible in 5–15 s as the filter settles.',
+        );
+        return ctx;
+      })
+      .catch((err: unknown) => {
+        const message =
+          err instanceof FaceROIError
+            ? err.message
+            : `Could not load face detector: ${err instanceof Error ? err.message : String(err)}`;
+        setStatus(refs, message);
+        throw err;
+      });
+  }
+
+  pumpFrames(refs, camera.getVideoElement(), display, pyramid, temporal, amplify, perf);
 }
 
 // requestVideoFrameCallback fires once per decoded video frame (Chrome 83+,
@@ -106,6 +141,7 @@ type RVFCCapable = HTMLVideoElement & {
 };
 
 function pumpFrames(
+  refs: UIRefs,
   video: HTMLVideoElement,
   displayCtx: DisplayContext,
   pyramidCtx: PyramidContext,
@@ -145,8 +181,20 @@ function pumpFrames(
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, displayCtx.canvas.width, displayCtx.canvas.height);
       drawAmplified(amplifyCtx, displayCtx.inputTexture, filteredState, currentAlpha);
+
+      // Face ROI is only meaningful in the pulse view. When the landmarker
+      // is ready, sample it and draw a debug rectangle so we can eyeball
+      // that we're tracking the right patch of forehead.
+      if (faceROI) {
+        const bbox = detectForeheadBBox(faceROI, video, t0);
+        if (bbox) showROI(refs, bbox);
+        else hideROI(refs);
+      } else {
+        hideROI(refs);
+      }
     } else {
-      // Debug view: just render the requested pyramid level.
+      // Debug view: just render the requested pyramid level. Hide the ROI
+      // overlay since the L1–L3 textures don't share the pulse view's UVs.
       const view = getLevelView(
         pyramidCtx,
         displayCtx.inputTexture,
@@ -155,6 +203,7 @@ function pumpFrames(
         currentLevel,
       );
       drawTexture(displayCtx, view.texture);
+      hideROI(refs);
     }
 
     // gl.finish() forces the GPU to complete all queued work before returning,
