@@ -4,9 +4,9 @@
 
 ## Active milestone
 
-**M2 — Temporal IIR bandpass + amplification + reconstruction.**
+**M3 — Face ROI + scalar pulse extraction + BPM display.**
 
-Acceptance: pointing the camera at a face shows visible pulsing in the cheeks/forehead within 5 s of Start; biquad band-response test passes; per-frame ms still under 16 ms. The hardest milestone — see `PROJECT_PLAN.md` for the full task list.
+Acceptance: BPM reading stabilises within 15 s of sitting still; reading matches a fingertip pulse-ox / smartwatch within ±5 BPM under good lighting; 60 Hz fluorescent flicker doesn't produce false readings. See `PROJECT_PLAN.md` for the full task list.
 
 ## What's done
 
@@ -16,19 +16,18 @@ Acceptance: pointing the camera at a face shows visible pulsing in the cheeks/fo
 - Five-star project exploration doc in `docs/five-star-projects.md`.
 - **M0 complete (2026-05-23):** Vite + TS strict scaffold, baseline UI shell, `Camera` class wrapping `getUserMedia` at 640×480 @ 30fps, webcam feed renders on a 2D canvas via `requestVideoFrameCallback`. Manually verified end-to-end on dev machine.
 - **M1 complete (2026-05-23):** WebGL2 substrate, per-frame texture upload, 4-level Gaussian pyramid on the GPU, L0–L3 level picker, FPS + per-frame-ms overlay. All four pyramid levels render correctly; budget verified on dev machine.
+- **M2 complete (2026-05-23):** Per-pixel Butterworth biquad bandpass (RBJ cookbook) on the green channel at pyramid L2, amplification + reconstruction with an alpha slider (0–200, default 50). Pulse becomes visible after ~5–15 s filter transient. 7-test Vitest suite for biquad coefficient correctness and band response.
 
-## What's next (M2 task list)
+## What's next (M3 task list)
 
-1. Create `src/pipeline/temporal.ts`:
-   - Butterworth biquad bandpass coefficients (RBJ cookbook form) for the requested band (start: 0.8–2.5 Hz at 30 fps).
-   - Per-pixel state (`x[n-1]`, `x[n-2]`, `y[n-1]`, `y[n-2]`) maintained in a ping-pong RGBA16F (or 32F) texture pair.
-   - `src/shaders/biquad-bandpass.frag` applies one biquad section per pass.
-2. Create `src/pipeline/amplify.ts`:
-   - Multiply filtered band by α (start α = 50, expose as a UI slider).
-   - Reconstruction shader adds amplified band back to the original frame.
-3. Wire the full pipeline: capture → pyramid → bandpass at L2 → amplify → reconstruct → display.
-4. Unit tests in `tests/temporal.test.ts`: known sinusoid in vs theoretical band response out, within tolerance. Wire `npm run test` to Vitest.
-5. Update this file's session log with what shipped and bump the active milestone to M3.
+1. Lazy-load MediaPipe Face Landmarker (per D-007) on first activation of a face-ROI cog. Show a "loading face detector…" indicator.
+2. Extract a forehead bounding box from the landmark mesh (points around the forehead region).
+3. Per frame, average the green channel inside the forehead box → scalar time series.
+4. Apply the same Butterworth bandpass to the scalar series (CPU is fine for 1 number/frame — reuse `applyBiquad`).
+5. Estimate BPM via zero-crossing rate or peak-picking over a 10-second sliding window.
+6. UI: render a "♥ 72 BPM" overlay on the magnified canvas.
+7. Notch filter at suspected mains frequency to address `MEMORY.md` Q2 if flicker shows up in real-world data.
+8. Update this file's session log with what shipped and bump the active milestone to M4.
 
 ## Open questions
 
@@ -80,6 +79,16 @@ console.debug(`frame: ${(performance.now() - t0).toFixed(2)}ms`);
 - Locked in tech stack: Vite + TS + WebGL2 + plain DOM. No backend, no framework.
 - Locked in algorithmic approach: color-based EVM first, IIR Butterworth bandpass, 4-level Gaussian pyramid, 640×480 capture.
 - Next session: scaffold Vite project and ship M0 (camera feed visible).
+
+### 2026-05-23 — M2 shipped (temporal IIR + amplification + reconstruction)
+- Added `milestone-2` and `tests` labels; opened issues #19–#22 (one per M2 task).
+- PR #23 `m2/temporal-bandpass` (402e67b): RBJ Audio EQ Cookbook bandpass coefficients (`biquadBandpassCoeffs`), a reference `applyBiquad` in plain JS, and the GL temporal module (`initTemporal`, `setTemporalBand`, `processTemporal`) with per-pixel state ping-pong'd in RGBA16F textures (requires `EXT_color_buffer_float`). `src/shaders/biquad-bandpass.frag` applies one biquad section per pass on the green channel; state texel packs `(x[n-1], x[n-2], y[n-1], y[n-2])` and downstream samples `.b` for `y[n]`. 7-test Vitest suite covering cookbook structure (`b0 = -b2`, `b1 = 0`), stability (`|a2| < 1`), invalid-band rejection, in-band gain ≈ unity, 10 Hz stopband < 0.1 RMS, passband/stopband ratio >8× (single biquad rolls off at ~6 dB/octave, not 12 — caught when an initial 10× threshold was wrong), DC blocking. Module isn't wired in this PR; tree-shaking keeps the bundle flat at 11.10 KB / 4.42 KB gz.
+- PR #24 `m2/amplify-and-wire` (8d9a97d): `src/pipeline/amplify.ts` + `src/shaders/amplify.frag` (`output = clamp(input + α · filteredBand, 0, 1)`, broadcasting filtered green to all three RGB channels so the face brightens/dims rather than chroma-shifting). `main.ts` wires the full pipeline `capture → pyramid → bandpass @ L2 → amplify → display`. Level picker re-labels L0 → "Pulse" with L1/L2/L3 as raw debug views. Alpha slider (0–200, default 50) updates live without restarting. `TEMPORAL_LEVEL = 2` is hardcoded per D-008 — becomes a cog field in M4.
+- Bundle after M2: **17.61 KB JS / 6.25 KB gzipped** (~3× M1 because temporal + amplify are now reachable from `main.ts`). Still well under the 200 KB initial-JS budget.
+- Self-merged through M2 (and the M1 close-out) per a one-off user override. Default rule (`Never self-merge` in `motionmag-workflow.md`) restores from the next session.
+- Open thread carried forward: `index.html` location (see M0 entry below).
+- Open quality threads: filtered state texture uses NEAREST → upsample from 160×120 to canvas is blocky (good enough for "see the pulse"; a pyramid-up shader is the future fix). Filtering is green-only for v0 — multi-channel filtering will need its own ADR if perf budget allows.
+- Next session: M3 — MediaPipe Face Landmarker, forehead ROI, scalar pulse extraction, BPM readout.
 
 ### 2026-05-23 — M1 shipped (WebGL2 pyramid + level picker + perf overlay)
 - Added `milestone-1` and `perf` labels; opened issues #10–#14 (one per M1 task).
