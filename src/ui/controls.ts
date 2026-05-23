@@ -2,13 +2,13 @@
 // Centralising lookups keeps `main.ts` free of `querySelector` boilerplate
 // and means a renamed id changes one line, not five.
 
-import { PYRAMID_LEVEL_COUNT } from '../pipeline/pyramid';
+import { getAllCogs, type Cog } from '../cogs';
 
 export interface UIRefs {
   startButton: HTMLButtonElement;
   canvas: HTMLCanvasElement;
   status: HTMLElement;
-  levelInputs: HTMLInputElement[];
+  cogSelect: HTMLSelectElement;
   perf: HTMLElement;
   alphaInput: HTMLInputElement;
   alphaValue: HTMLElement;
@@ -25,9 +25,7 @@ export function getUIRefs(): UIRefs {
   const alphaValue = document.querySelector<HTMLElement>('#alpha-value');
   const roi = document.querySelector<HTMLElement>('#roi');
   const bpm = document.querySelector<HTMLElement>('#bpm');
-  const levelInputs = Array.from(
-    document.querySelectorAll<HTMLInputElement>('#level-picker input[type="radio"]'),
-  );
+  const cogSelect = document.querySelector<HTMLSelectElement>('#cog');
 
   if (!startButton) throw new Error('UI: #start button not found');
   if (!canvas) throw new Error('UI: #output canvas not found');
@@ -37,21 +35,64 @@ export function getUIRefs(): UIRefs {
   if (!alphaValue) throw new Error('UI: #alpha-value output not found');
   if (!roi) throw new Error('UI: #roi element not found');
   if (!bpm) throw new Error('UI: #bpm element not found');
-  if (levelInputs.length !== PYRAMID_LEVEL_COUNT) {
-    throw new Error(
-      `UI: expected ${PYRAMID_LEVEL_COUNT} level radios, got ${levelInputs.length}`,
-    );
+  if (!cogSelect) throw new Error('UI: #cog select not found');
+
+  populateCogSelect(cogSelect);
+
+  return { startButton, canvas, status, cogSelect, perf, alphaInput, alphaValue, roi, bpm };
+}
+
+function populateCogSelect(select: HTMLSelectElement): void {
+  select.replaceChildren();
+  for (const cog of getAllCogs()) {
+    const opt = document.createElement('option');
+    opt.value = cog.id;
+    opt.textContent = cog.displayName;
+    opt.title = cog.description;
+    select.appendChild(opt);
   }
-
-  return { startButton, canvas, status, levelInputs, perf, alphaInput, alphaValue, roi, bpm };
 }
 
-export function setBPM(refs: UIRefs, bpm: number | null, visible: boolean): void {
-  refs.bpm.hidden = !visible;
-  refs.bpm.textContent = bpm === null ? '— BPM' : `♥ ${Math.round(bpm)} BPM`;
+export function setStatus(refs: UIRefs, message: string): void {
+  refs.status.textContent = message;
 }
 
-export function showROI(refs: UIRefs, bbox: { xNorm: number; yNorm: number; widthNorm: number; heightNorm: number }): void {
+export function setStartEnabled(refs: UIRefs, enabled: boolean): void {
+  refs.startButton.disabled = !enabled;
+}
+
+export function getActiveCogId(refs: UIRefs): string {
+  return refs.cogSelect.value;
+}
+
+export function onCogChange(refs: UIRefs, handler: (id: string) => void): void {
+  refs.cogSelect.addEventListener('change', () => {
+    handler(refs.cogSelect.value);
+  });
+}
+
+export function getAlpha(refs: UIRefs): number {
+  const v = Number.parseFloat(refs.alphaInput.value);
+  return Number.isFinite(v) ? v : 0;
+}
+
+export function setAlpha(refs: UIRefs, alpha: number): void {
+  refs.alphaInput.value = String(alpha);
+  refs.alphaValue.textContent = `×${alpha.toFixed(0)}`;
+}
+
+export function onAlphaChange(refs: UIRefs, handler: (alpha: number) => void): void {
+  refs.alphaInput.addEventListener('input', () => {
+    const a = getAlpha(refs);
+    refs.alphaValue.textContent = `×${a.toFixed(0)}`;
+    handler(a);
+  });
+}
+
+export function showROI(
+  refs: UIRefs,
+  bbox: { xNorm: number; yNorm: number; widthNorm: number; heightNorm: number },
+): void {
   refs.roi.hidden = false;
   refs.roi.style.left = `${(bbox.xNorm * 100).toFixed(2)}%`;
   refs.roi.style.top = `${(bbox.yNorm * 100).toFixed(2)}%`;
@@ -63,41 +104,12 @@ export function hideROI(refs: UIRefs): void {
   refs.roi.hidden = true;
 }
 
-export function setStatus(refs: UIRefs, message: string): void {
-  refs.status.textContent = message;
+export function setBPM(refs: UIRefs, bpm: number | null, visible: boolean): void {
+  refs.bpm.hidden = !visible;
+  refs.bpm.textContent = bpm === null ? '— BPM' : `♥ ${Math.round(bpm)} BPM`;
 }
 
-export function setStartEnabled(refs: UIRefs, enabled: boolean): void {
-  refs.startButton.disabled = !enabled;
-}
-
-export function getSelectedLevel(refs: UIRefs): number {
-  for (const input of refs.levelInputs) {
-    if (input.checked) {
-      const value = Number.parseInt(input.value, 10);
-      if (Number.isFinite(value)) return value;
-    }
-  }
-  return 0;
-}
-
-export function onLevelChange(refs: UIRefs, handler: (level: number) => void): void {
-  for (const input of refs.levelInputs) {
-    input.addEventListener('change', () => {
-      if (input.checked) handler(getSelectedLevel(refs));
-    });
-  }
-}
-
-export function getAlpha(refs: UIRefs): number {
-  const v = Number.parseFloat(refs.alphaInput.value);
-  return Number.isFinite(v) ? v : 0;
-}
-
-export function onAlphaChange(refs: UIRefs, handler: (alpha: number) => void): void {
-  refs.alphaInput.addEventListener('input', () => {
-    const a = getAlpha(refs);
-    refs.alphaValue.textContent = `×${a.toFixed(0)}`;
-    handler(a);
-  });
+export function statusForCog(cog: Cog): string {
+  const settle = cog.slowSettle ? ' Filter transient takes ~30–60 s for this band.' : '';
+  return `Active: ${cog.displayName} — ${cog.description}${settle}`;
 }

@@ -1,6 +1,5 @@
 import { Camera, CameraError } from './pipeline/capture';
 import {
-  drawTexture,
   initDisplay,
   uploadVideoFrame,
   DisplayError,
@@ -16,6 +15,7 @@ import {
 import {
   initTemporal,
   processTemporal,
+  setTemporalBand,
   TemporalError,
   type TemporalContext,
 } from './pipeline/temporal';
@@ -32,25 +32,24 @@ import {
   type FaceROIContext,
 } from './pipeline/face-roi';
 import { initPulseMeter, PulseMeterError, type PulseMeter } from './pipeline/pulse-meter';
+import { getCogById, type Cog } from './cogs';
 import {
-  getAlpha,
-  getSelectedLevel,
+  getActiveCogId,
   getUIRefs,
   hideROI,
   onAlphaChange,
-  onLevelChange,
+  onCogChange,
+  setAlpha,
   setBPM,
   setStartEnabled,
   setStatus,
   showROI,
+  statusForCog,
   type UIRefs,
 } from './ui/controls';
 import { initPerfMeter, type PerfMeter } from './ui/perf-overlay';
 
-// Pyramid level at which we apply the temporal bandpass. Per D-008, level 2
-// (160×120 at 640×480 capture) is where the pulse signal sits — low enough
-// to suppress sensor noise, high enough to localise to skin regions.
-const TEMPORAL_LEVEL = 2;
+const SAMPLE_RATE_HZ = 30;
 
 const camera = new Camera();
 let display: DisplayContext | null = null;
@@ -60,8 +59,8 @@ let amplify: AmplifyContext | null = null;
 let faceROI: FaceROIContext | null = null;
 let faceROILoading: Promise<FaceROIContext> | null = null;
 let pulseMeter: PulseMeter | null = null;
-let currentLevel = 0;
-let currentAlpha = 50;
+let currentCog: Cog;
+let currentAlpha: number;
 
 async function handleStart(refs: UIRefs): Promise<void> {
   setStartEnabled(refs, false);
@@ -103,43 +102,64 @@ async function handleStart(refs: UIRefs): Promise<void> {
     return;
   }
 
+  // Push the active cog's band into the temporal module — it was init'd with
+  // a generic default that ignores cog choice.
+  setTemporalBand(temporal, currentCog.bandHz[0], currentCog.bandHz[1], SAMPLE_RATE_HZ);
+
   const perf = initPerfMeter(refs.perf);
 
-  setStatus(
-    refs,
-    'Streaming. Sit still and watch — pulse becomes visible in 5–15 s as the filter settles.',
-  );
+  setStatus(refs, statusForCog(currentCog));
 
-  // Kick off the lazy MediaPipe load on first Start. Detection runs in the
-  // frame pump only once the landmarker resolves; until then the pulse view
-  // still works without an ROI overlay.
-  if (!faceROI && !faceROILoading) {
-    setStatus(refs, 'Loading face detector…');
-    faceROILoading = initFaceROI()
-      .then((ctx) => {
-        faceROI = ctx;
-        setStatus(
-          refs,
-          'Streaming. Sit still — pulse becomes visible in 5–15 s as the filter settles.',
-        );
-        return ctx;
-      })
-      .catch((err: unknown) => {
-        const message =
-          err instanceof FaceROIError
-            ? err.message
-            : `Could not load face detector: ${err instanceof Error ? err.message : String(err)}`;
-        setStatus(refs, message);
-        throw err;
-      });
+  // Lazy-load MediaPipe only when the active cog actually needs an ROI.
+  if (currentCog.roi === 'forehead') {
+    ensureFaceROILoaded(refs);
   }
 
   pumpFrames(refs, camera.getVideoElement(), display, pyramid, temporal, amplify, pulseMeter, perf);
 }
 
+function ensureFaceROILoaded(refs: UIRefs): void {
+  if (faceROI || faceROILoading) return;
+  setStatus(refs, 'Loading face detector…');
+  faceROILoading = initFaceROI()
+    .then((ctx) => {
+      faceROI = ctx;
+      setStatus(refs, statusForCog(currentCog));
+      return ctx;
+    })
+    .catch((err: unknown) => {
+      const message =
+        err instanceof FaceROIError
+          ? err.message
+          : `Could not load face detector: ${err instanceof Error ? err.message : String(err)}`;
+      setStatus(refs, message);
+      throw err;
+    });
+}
+
+function applyActiveCog(refs: UIRefs, cog: Cog): void {
+  currentCog = cog;
+  currentAlpha = cog.amplification;
+  setAlpha(refs, currentAlpha);
+  setStatus(refs, statusForCog(cog));
+
+  if (temporal) {
+    setTemporalBand(temporal, cog.bandHz[0], cog.bandHz[1], SAMPLE_RATE_HZ);
+  }
+  if (pulseMeter) {
+    pulseMeter.reset();
+  }
+  if (cog.roi === 'forehead') {
+    ensureFaceROILoaded(refs);
+  } else {
+    hideROI(refs);
+    setBPM(refs, null, false);
+  }
+}
+
 // requestVideoFrameCallback fires once per decoded video frame (Chrome 83+,
-// Safari 15.4+). For the M2 pipeline rAF would also work, but rVFC gives us
-// per-frame timing for free, which the perf overlay uses.
+// Safari 15.4+). For the active cog's pipeline rAF would also work, but
+// rVFC gives us per-frame timing for free, which the perf overlay uses.
 type RVFCCallback = (now: DOMHighResTimeStamp, metadata: unknown) => void;
 type RVFCCapable = HTMLVideoElement & {
   requestVideoFrameCallback?: (cb: RVFCCallback) => number;
@@ -173,7 +193,7 @@ function pumpFrames(
       displayCtx.inputTexture,
       displayCtx.textureWidth,
       displayCtx.textureHeight,
-      TEMPORAL_LEVEL,
+      currentCog.pyramidLevel,
     );
     const filteredState = processTemporal(
       temporalCtx,
@@ -182,48 +202,34 @@ function pumpFrames(
       filterInput.height,
     );
 
-    if (currentLevel === 0) {
-      // Pulse view: original + α·filteredBand, full-res output.
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, displayCtx.canvas.width, displayCtx.canvas.height);
-      drawAmplified(amplifyCtx, displayCtx.inputTexture, filteredState, currentAlpha);
+    // Magnification is always full-frame: the cog's pyramidLevel chooses
+    // *which spatial frequencies to amplify*, not which pixels are touched.
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, displayCtx.canvas.width, displayCtx.canvas.height);
+    drawAmplified(amplifyCtx, displayCtx.inputTexture, filteredState, currentAlpha);
 
-      // Face ROI is only meaningful in the pulse view. When the landmarker
-      // is ready, sample it for the BPM meter and draw a debug rectangle.
-      if (faceROI) {
-        const bbox = detectForeheadBBox(faceROI, video, t0);
-        if (bbox) {
-          showROI(refs, bbox);
+    // Per-cog overlays.
+    if (currentCog.roi === 'forehead' && faceROI) {
+      const bbox = detectForeheadBBox(faceROI, video, t0);
+      if (bbox) {
+        showROI(refs, bbox);
+        if (currentCog.postprocess === 'pulse-bpm') {
           pulseMeterCtx.recordFrame(video, bbox);
           setBPM(refs, pulseMeterCtx.getBPM(), true);
-        } else {
-          hideROI(refs);
-          setBPM(refs, null, true);
         }
       } else {
         hideROI(refs);
-        setBPM(refs, null, false);
+        if (currentCog.postprocess === 'pulse-bpm') {
+          setBPM(refs, null, true);
+        }
       }
     } else {
-      // Debug view: just render the requested pyramid level. Hide both
-      // overlays since the L1–L3 textures don't share the pulse view's UVs
-      // and the BPM number isn't meaningful here.
-      const view = getLevelView(
-        pyramidCtx,
-        displayCtx.inputTexture,
-        displayCtx.textureWidth,
-        displayCtx.textureHeight,
-        currentLevel,
-      );
-      drawTexture(displayCtx, view.texture);
       hideROI(refs);
       setBPM(refs, null, false);
     }
 
     // gl.finish() forces the GPU to complete all queued work before returning,
     // so the timer captures real pipeline cost rather than just CPU dispatch.
-    // Adds a sync stall but it's the only way to verify the 16 ms budget
-    // without EXT_disjoint_timer_query_webgl2.
     gl.finish();
     perf.recordFrame(performance.now() - t0);
   };
@@ -246,15 +252,23 @@ function pumpFrames(
 
 function main(): void {
   const refs = getUIRefs();
-  currentLevel = getSelectedLevel(refs);
-  currentAlpha = getAlpha(refs);
-  refs.alphaValue.textContent = `×${currentAlpha.toFixed(0)}`;
-  onLevelChange(refs, (level) => {
-    currentLevel = level;
+  const activeId = getActiveCogId(refs);
+  const initial = getCogById(activeId);
+  if (!initial) {
+    throw new Error(`Cog registry has no entry for default id "${activeId}".`);
+  }
+  currentCog = initial;
+  currentAlpha = initial.amplification;
+  setAlpha(refs, currentAlpha);
+
+  onCogChange(refs, (id) => {
+    const next = getCogById(id);
+    if (next) applyActiveCog(refs, next);
   });
   onAlphaChange(refs, (alpha) => {
     currentAlpha = alpha;
   });
+
   refs.startButton.addEventListener('click', () => {
     void handleStart(refs);
   });

@@ -29,13 +29,10 @@
       <section class="app__controls">
         <button id="start" type="button" class="app__button">Start</button>
 
-        <fieldset id="level-picker" class="app__levels" aria-label="Pyramid level">
-          <legend class="app__levels-legend">View</legend>
-          <label class="app__level"><input type="radio" name="level" value="0" checked />Pulse</label>
-          <label class="app__level"><input type="radio" name="level" value="1" />L1</label>
-          <label class="app__level"><input type="radio" name="level" value="2" />L2</label>
-          <label class="app__level"><input type="radio" name="level" value="3" />L3</label>
-        </fieldset>
+        <label class="app__cog" for="cog">
+          Cog
+          <select id="cog" class="app__cog-select"></select>
+        </label>
 
         <label class="app__alpha" for="alpha">
           Boost <output id="alpha-value">×50</output>

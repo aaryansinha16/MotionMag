@@ -121,35 +121,39 @@ body {
   justify-content: center;
 }
 
-.app__levels {
+.app__cog {
   display: inline-flex;
-  gap: 0.5rem;
   align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--fg);
   padding: 0.4rem 0.8rem;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.03);
 }
 
-.app__levels-legend {
-  font-size: 0.8rem;
-  color: var(--muted);
-  padding: 0 0.4rem;
-}
-
-.app__level {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.9rem;
+.app__cog-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
   color: var(--fg);
+  border: 0;
+  font: inherit;
+  padding: 0.1rem 0.2rem;
   cursor: pointer;
-  user-select: none;
+  min-width: 9rem;
 }
 
-.app__level input[type='radio'] {
-  accent-color: var(--accent);
-  margin: 0;
+.app__cog-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.app__cog-select option {
+  background: var(--bg);
+  color: var(--fg);
 }
 
 .app__alpha {
