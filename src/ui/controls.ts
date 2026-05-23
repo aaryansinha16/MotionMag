@@ -9,12 +9,14 @@ export interface UIRefs {
   canvas: HTMLCanvasElement;
   status: HTMLElement;
   levelInputs: HTMLInputElement[];
+  perf: HTMLElement;
 }
 
 export function getUIRefs(): UIRefs {
   const startButton = document.querySelector<HTMLButtonElement>('#start');
   const canvas = document.querySelector<HTMLCanvasElement>('#output');
   const status = document.querySelector<HTMLElement>('#status');
+  const perf = document.querySelector<HTMLElement>('#perf');
   const levelInputs = Array.from(
     document.querySelectorAll<HTMLInputElement>('#level-picker input[type="radio"]'),
   );
@@ -22,13 +24,14 @@ export function getUIRefs(): UIRefs {
   if (!startButton) throw new Error('UI: #start button not found');
   if (!canvas) throw new Error('UI: #output canvas not found');
   if (!status) throw new Error('UI: #status element not found');
+  if (!perf) throw new Error('UI: #perf element not found');
   if (levelInputs.length !== PYRAMID_LEVEL_COUNT) {
     throw new Error(
       `UI: expected ${PYRAMID_LEVEL_COUNT} level radios, got ${levelInputs.length}`,
     );
   }
 
-  return { startButton, canvas, status, levelInputs };
+  return { startButton, canvas, status, levelInputs, perf };
 }
 
 export function setStatus(refs: UIRefs, message: string): void {
